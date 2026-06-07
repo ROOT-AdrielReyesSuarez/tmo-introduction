@@ -1,0 +1,11 @@
+# Entornos virtuales (No subir a Git)
+.venv/
+venv/
+
+# Archivos temporales de ejecución de Python (Caché)
+**/__pycache__/
+*.pyc
+
+# Configuraciones de editores de código
+.vscode/
+.idea/
