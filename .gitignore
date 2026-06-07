@@ -9,3 +9,5 @@ venv/
 # Configuraciones de editores de código
 .vscode/
 .idea/
+
+*.png

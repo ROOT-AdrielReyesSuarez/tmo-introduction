@@ -8,7 +8,7 @@ class DynamicEnvironment:
     espacio continuo y mutar el entorno aplicando un control estricto de límites.
     """
 
-  def __init__(self, severity_c: float = 0.05, severity_w: float = 1.0, severity_h: float = 5.0) -> None:
+  def __init__(self, severity_c: float = 1.0, severity_w: float = 1.0, severity_h: float = 5.0) -> None:
     """Inicializa el entorno con un pico cónico en una posición aleatoria válida."""
     # Definición de los límites y fronteras del problema
     self.bounds_x: Tuple[float, float] = (-5.0, 5.0)

@@ -1,64 +1,98 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from src import DynamicEnvironment
+# Importamos ambas estrategias para la comparativa
+from src.optimizers import PSOStrategy, DifferentialEvolutionStrategy
 
-if __name__ == '__main__':
-  print("=== Inicializando Simulador TMO - Paso 1 ===")
-  # Instanciamos el entorno dinámico con sus valores por defecto
+if __name__ == "__main__":
+  print("=== Inicializando Simulador Competitivo TMO ===")
+  
+  # Instanciamos el entorno único
   env = DynamicEnvironment()
+  
+  # Instanciamos ambos optimizadores con el mismo tamaño de población (30)
+  pso_opt = PSOStrategy(num_particles=30)
+  de_opt = DifferentialEvolutionStrategy(pop_size=30)
+  
+  # Configuración de la simulación temporal
+  total_environments: int = 5 
+  generations_per_env: int = 50
+  
+  pso_errors: list[float] = []
+  de_errors: list[float] = []
 
-  # Creamos el espacio continuo discretizado para la representación visual
-  # Generamos 200 puntos equidistantes entre -5.0 y 5.0 para cada eje
-  x = np.linspace(-5.0, 5.0, 200)
-  y = np.linspace(-5.0, 5.0, 200)
-
-  # Creamos una malla de coordenadas
+  # Rejilla continua de alta definición para dibujar las curvas de nivel
+  x = np.linspace(-5.0, 5.0, 100)
+  y = np.linspace(-5.0, 5.0, 100)
   X, Y = np.meshgrid(x, y)
+  
+  # Creamos el lienzo: 2 filas (Fila 0 = PSO, Fila 1 = DE) y 5 columnas (Ambientes)
+  fig, axes = plt.subplots(2, total_environments, figsize=(20, 8))
 
-  # Evaluamos la malla
-  Z = env.evaluate(X, Y)
+  print(f"\nIniciando carrera temporal en {total_environments} ambientes consecutivos...")
+  print("-" * 75)
 
-  # Creamos una ventana gráfica con dos sub-gráficas
-  fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+  # Bucle principal de la línea de tiempo
+  for env_idx in range(total_environments):
+    if env_idx > 0:
+      env.mutate_enviroment()  # Provocamos el terremoto en la isla
+      
+    print(f"[Ambiente {env_idx + 1}]")
+    
+    # Obtenemos el punto más alto real en este instante
+    (real_x, real_y), max_fit = env.get_optimum()
+    Z = env.evaluate(X, Y)
+    
+    # -----------------------------------------------------------------------
+    # Algoritmo PSO
+    # -----------------------------------------------------------------------
+    ax_pso = axes[0, env_idx]
+    ax_pso.contourf(X, Y, Z, levels=20, cmap='viridis')
+    ax_pso.scatter(real_x, real_y, color='red', marker='*', s=120, label='Real' if env_idx == 0 else "")
+    
+    # El PSO ejecuta su búsqueda estática congelada
+    sol_pso = pso_opt.minimize_or_maximize(env, generations=generations_per_env)
+    ax_pso.scatter(sol_pso[0], sol_pso[1], color='cyan', marker='P', s=90, label='PSO' if env_idx == 0 else "")
+    
+    err_pso = np.sqrt((sol_pso[0] - real_x)**2 + (sol_pso[1] - real_y)**2)
+    pso_errors.append(err_pso)
+    
+    # Estética fila PSO
+    ax_pso.set_title(f"Ambiente {env_idx + 1} - PSO\nErr: {err_pso:.3f}", fontsize=10)
+    ax_pso.set_xticks([])
+    if env_idx % total_environments != 0: ax_pso.set_yticks([])
+    if env_idx == 0: ax_pso.legend(loc='upper right', fontsize=8)
+    ax_pso.grid(True, alpha=0.15)
 
-  # --- AMBIENTE 1 (Izquierda) ---
-  # Pintamos las curvas de nivel rellenas de color (Contour Plot)
-  contour1 = ax1.contourf(X, Y, Z, levels=30, cmap='viridis')
-  fig.colorbar(contour1, ax=ax1, label='Fitness (Altitud)')
+    # -----------------------------------------------------------------------
+    # Algoritmo Evolución Diferencial (DE)
+    # -----------------------------------------------------------------------
+    ax_de = axes[1, env_idx]
+    ax_de.contourf(X, Y, Z, levels=20, cmap='viridis')
+    ax_de.scatter(real_x, real_y, color='red', marker='*', s=120)
+    
+    # La Evolución Diferencial ejecuta su búsqueda en el mismo terreno
+    sol_de = de_opt.minimize_or_maximize(env, generations=generations_per_env)
+    ax_de.scatter(sol_de[0], sol_de[1], color='gold', marker='P', s=90, label='DE' if env_idx == 0 else "")
+    
+    err_de = np.sqrt((sol_de[0] - real_x)**2 + (sol_de[1] - real_y)**2)
+    de_errors.append(err_de)
+    
+    # Estética fila DE
+    ax_de.set_title(f"Ambiente {env_idx + 1} - DE\nErr: {err_de:.3f}", fontsize=10)
+    if env_idx % total_environments != 0: ax_de.set_yticks([])
+    if env_idx == 0: ax_de.legend(loc='upper right', fontsize=8)
+    ax_de.grid(True, alpha=0.15)
+
+    print(f"   -> Err PSO: {err_pso:.4f} | Err DE: {err_de:.4f}")
+
+  # Imprimir balance de resultados por consola
+  print("-" * 75)
+  print("=== Cómputo final del experimento ===")
+  print(f"Error medio temporal del PSO: {np.mean(pso_errors):.4f}")
+  print(f"Error medio temporal de la DE: {np.mean(de_errors):.4f}")
   
-  # Obtenemos el óptimo real y lo dibujamos como una estrella roja
-  (opt_x, opt_y), opt_fit = env.get_optimum()
-  ax1.scatter(opt_x, opt_y, color='red', marker='*', s=200, label=f'Óptimo Real\n({opt_x:.2f}, {opt_y:.2f})')
-  
-  ax1.set_title(f"Ambiente Inicial (Ambiente 1)\nAncho: {env.width:.2f} | Altura: {env.height:.2f}")
-  ax1.set_xlabel("Variable X1")
-  ax1.set_ylabel("Variable X2")
-  ax1.legend(loc='upper right')
-  ax1.grid(True, alpha=0.3)
-  
-  # Provocamos la transición temporal (Mutación del entorno)
-  env.mutate_enviroment()
-  
-  # Re-evaluamos la misma malla de puntos con las nuevas propiedades de la montaña
-  Z_mutado = env.evaluate(X, Y)
-  
-  # --- AMBIENTE 2 (Derecha) ---
-  contour2 = ax2.contourf(X, Y, Z_mutado, levels=30, cmap='viridis')
-  fig.colorbar(contour2, ax=ax2, label='Fitness (Altitud)')
-  
-  # Obtenemos las nuevas coordenadas del óptimo mutado
-  (new_opt_x, new_opt_y), new_opt_fit = env.get_optimum()
-  ax2.scatter(new_opt_x, new_opt_y, color='red', marker='*', s=200, label=f'Nuevo Óptimo\n({new_opt_x:.2f}, {new_opt_y:.2f})')
-  
-  ax2.set_title(f"Siguiente Ambiente (Ambiente 2)\nAncho: {env.width:.2f} | Altura: {env.height:.2f}")
-  ax2.set_xlabel("Variable X1")
-  ax2.set_ylabel("Variable X2")
-  ax2.legend(loc='upper right')
-  ax2.grid(True, alpha=0.3)
-  
-  # Guardamos el resultado como una imagen en la raíz del proyecto
+  # Guardamos el lienzo comparativo
   plt.tight_layout()
-  plt.savefig("resultado_paso1.png", dpi=300)
-  print("¡Éxito! Los mapas topográficos se han guardado en 'resultado_paso1.png'")
-
-  
+  plt.savefig("comparativa_pso_vs_de.png", dpi=300)
+  print("\n¡Imagen guardada con éxito como 'comparativa_pso_vs_de.png'!")
